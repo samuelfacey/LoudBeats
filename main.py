@@ -41,6 +41,7 @@ async def join(ctx):
         await ctx.send("Voice channel is empty! 😔")
     if ctx.voice_client is None:
         await channel.connect()
+        print("Joined channel")
     else:
         await ctx.voice_client.move_to(channel)
         print("Joined channel")
@@ -226,5 +227,5 @@ async def check(ctx):
 
 
 
-client.run("ODkyOTY2ODgwODc5NDU2Mjk2.YVUmNg.Th7tNMdjn2phce1wCykeZUxteJ8")
+client.run("ODkyOTY2ODgwODc5NDU2Mjk2.YVUmNg.FqDgABYYa187XI9lFaShMg9HV2I")
 
