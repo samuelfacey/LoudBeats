@@ -29,6 +29,7 @@ def check_queue(ctx,id):
 async def on_ready():
     print("Loudbeats has arrived!")
     print("----------------------")
+    await client.change_presence(status=discord.Status.online, activity=discord.Game("Audio for Discord guilds"))
 
 # Bot joins voice channel
 @client.command(pass_context=True)
