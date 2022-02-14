@@ -36,7 +36,7 @@ async def join(ctx):
     channel = ctx.author.voice.channel
 
     if ctx.author.voice is None:
-        await ctx.send("Voice channel is empty! :(")
+        await ctx.send("Voice channel is empty! 😔")
     if ctx.voice_client is None:
         await channel.connect()
     else:
@@ -48,7 +48,7 @@ async def leave(ctx):
     if (ctx.voice_client):
         await ctx.guild.voice_client.disconnect()
     else:
-        await ctx.send("I'm not in a voice channel!")
+        await ctx.send("I'm not in a voice channel! 🤔")
 
 # Pauses audio
 @client.command(pass_content=True)
@@ -58,7 +58,7 @@ async def pause(ctx):
         voice.pause()
         await ctx.send("Paused! ⏸")
     else:
-        await ctx.send("There's nothing playing right now!")
+        await ctx.send("There's nothing playing right now! 🤔")
 
 # Stops playback and clears queue 
 @client.command(pass_content=True)
@@ -77,7 +77,7 @@ async def resume(ctx):
         voice.resume()
         await ctx.send("Resumed! ⏯")
     else:
-        await ctx.send("There's nothing paused right now!")
+        await ctx.send("There's nothing paused right now! 🤔")
 
 # Skips current song
 @client.command(pass_content=True)
@@ -102,7 +102,7 @@ async def play(ctx,*,url):
     
     # Joins voice channel
         if ctx.author.voice is None:
-            await ctx.send("Hold up, the voice channel is empty! :(")
+            await ctx.send("Hold up, the voice channel is empty! 😔")
         voice_channel = ctx.author.voice.channel
         if ctx.voice_client is None:
             await voice_channel.connect()
