@@ -27,7 +27,8 @@ def check_queue(ctx,id):
 # Displays bot status
 @client.event
 async def on_ready():
-    print("Hello World.")
+    print("Loudbeats has arrived!")
+    print("----------------------")
 
 # Bot joins voice channel
 @client.command(pass_context=True)
@@ -41,12 +42,14 @@ async def join(ctx):
         await channel.connect()
     else:
         await ctx.voice_client.move_to(channel)
+        print("Joined channel")
 
 # Bot leaves voice channel
 @client.command(pass_context=True)
 async def leave(ctx):
     if (ctx.voice_client):
         await ctx.guild.voice_client.disconnect()
+        print("Left channel")
     else:
         await ctx.send("I'm not in a voice channel! 🤔")
 
@@ -57,6 +60,7 @@ async def pause(ctx):
     if voice.is_playing():
         voice.pause()
         await ctx.send("Paused! ⏸")
+        print("Paused")
     else:
         await ctx.send("There's nothing playing right now! 🤔")
 
@@ -68,6 +72,7 @@ async def stop(ctx):
     voice.stop()
     await ctx.send("Stopped! ⏹")
     await ctx.guild.voice_client.disconnect()
+    print("Stopped and queue cleared")
 
 # Resumes audio if paused
 @client.command(pass_content=True)
@@ -76,6 +81,7 @@ async def resume(ctx):
     if voice.is_paused():
         voice.resume()
         await ctx.send("Resumed! ⏯")
+        print("Resumed")
     else:
         await ctx.send("There's nothing paused right now! 🤔")
 
@@ -89,11 +95,13 @@ async def skip(ctx):
         source = queues[id].pop(0)
         player = voice.play(source)
         await ctx.send("Skipped! ⏭️")
+        print("Skipped, queue not empty")
     else:
         voice.stop()
         source = queues[id]
         player = voice.play(source)
-        await ctx.send("Skipped! ⏭️") 
+        await ctx.send("Skipped! ⏭️")
+        print("Skipped, queue empty") 
 
 
 # Bot plays song
@@ -191,6 +199,7 @@ async def q(ctx,*,url):
     else:
         queues[guild_id] = [source]
     await ctx.send("Song queued! ✔️")
+    print("Song added to queue")
 
 # Lists songs in queue
 @client.command(pass_context=True)
@@ -203,6 +212,7 @@ async def list(ctx):
 async def clear(ctx):
     queues.clear()
     await ctx.send("Queue cleared! 💥")
+    print("Queue cleared")
 
 
 @client.command(pass_context=True)
@@ -212,6 +222,7 @@ async def check(ctx):
         await ctx.send("Nothing seems to be playing!")
     elif voice.is_playing() == True:
         await ctx.send(f"Something is playing! {voice}")
+
 
 
 client.run("ODkyOTY2ODgwODc5NDU2Mjk2.YVUmNg.Th7tNMdjn2phce1wCykeZUxteJ8")
