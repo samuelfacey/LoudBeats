@@ -6,6 +6,7 @@ from discord.ext import commands
 from discord import FFmpegPCMAudio
 from youtube_dl import YoutubeDL
 from youtube_dl.utils import DownloadError
+import datetime
 
 
 client = commands.Bot(command_prefix='!')
@@ -16,13 +17,23 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 # ----
 
 queues = {}
+qList = []
+
+# ----
+
+
+
+# ----
 
 # Checks if anything is in queue
 def check_queue(ctx,id):
     if queues[id] != []:
         voice = ctx.guild.voice_client
         source = queues[id].pop(0)
-        player = voice.play(source)
+        voice.play(source, after=lambda e: check_queue(ctx, ctx.message.guild.id))
+        print("check_queue function CALLED AND UTILIZED")
+    qList.pop(0)
+    print("qList popped")
 
 # Displays bot status
 @client.event
@@ -71,6 +82,7 @@ async def pause(ctx):
 async def stop(ctx):
     voice = discord.utils.get(client.voice_clients,guild=ctx.guild)
     queues.clear()
+    qList.clear()
     voice.stop()
     await ctx.send("Stopped! ⏹")
     await ctx.guild.voice_client.disconnect()
@@ -94,14 +106,13 @@ async def skip(ctx):
     voice = ctx.guild.voice_client
     if queues[id] != []:
         voice.stop()
-        source = queues[id].pop(0)
-        player = voice.play(source)
+        source = queues.get(id)
+        voice.play(source, after=lambda e: check_queue(ctx, ctx.message.guild.id))
         await ctx.send("Skipped! ⏭️")
         print("Skipped, queue not empty")
     else:
         voice.stop()
-        source = queues[id]
-        player = voice.play(source)
+        qList.pop(0)
         await ctx.send("Skipped! ⏭️")
         print("Skipped, queue empty") 
 
@@ -131,10 +142,14 @@ async def play(ctx,*,url):
                 with YoutubeDL(YDL_OPTS) as ydl:
                     info = ydl.extract_info(url, download=False)['entries'][0]
                 await ctx.send(f"Now playing! 🎉\n{info.get('webpage_url')}\n")
+                durInt = int(f"{info.get('duration')}")
+                durationCalc = str(datetime.timedelta(seconds=durInt))
+                qList.append(f"{info.get('title')} | {durationCalc}")
                 URL = info['formats'][0]['url']
                 source = FFmpegPCMAudio(URL, **FFMPEG_OPTS)
-                player = voice.play(source, after=lambda x=None: check_queue(ctx, ctx.message.guild.id))
+                voice.play(source, after=lambda e: check_queue(ctx, ctx.message.guild.id))
                 voice.is_playing()
+                print("Search play called")
             else:
                 await ctx.send("Already playing song")
                 return
@@ -144,10 +159,14 @@ async def play(ctx,*,url):
             if not voice.is_playing():
                 with YoutubeDL(YDL_OPTS) as ydl:
                     info = ydl.extract_info(url, download=False)
+                durInt = int(f"{info.get('duration')}")
+                durationCalc = str(datetime.timedelta(seconds=durInt))
+                qList.append(f"{info.get('title')} | {durationCalc}")
                 URL = info['formats'][0]['url']
                 source = FFmpegPCMAudio(URL, **FFMPEG_OPTS)
-                player = voice.play(source)
+                voice.play(source, after=lambda e: check_queue(ctx, ctx.message.guild.id))
                 voice.is_playing()
+                print("URL play called")
             else:
                 await ctx.send("Already playing song")
                 return
@@ -173,18 +192,26 @@ async def q(ctx,*,url):
         with YoutubeDL(YDL_OPTS) as ydl:
             info = ydl.extract_info(url, download=False)['entries'][0]
         await ctx.send(f"Coming right up! ▶️\n{info.get('webpage_url')}\n")
+        durInt = int(f"{info.get('duration')}")
+        durationCalc = str(datetime.timedelta(seconds=durInt))
+        qList.append(f"{info.get('title')} | {durationCalc}")
         URL = info['formats'][0]['url']
         source = FFmpegPCMAudio(URL, **FFMPEG_OPTS)
         print(voice)
+        print("Search queue called")
         
         
     # If using URL
     except KeyError:
         with YoutubeDL(YDL_OPTS) as ydl:
             info = ydl.extract_info(url, download=False)
+        durInt = int(f"{info.get('duration')}")
+        durationCalc = str(datetime.timedelta(seconds=durInt))
+        qList.append(f"{info.get('title')} | {durationCalc}")
         URL = info['formats'][0]['url']
         source = FFmpegPCMAudio(URL, **FFMPEG_OPTS)
         print(voice)
+        print("URL queue called")
     except IndexError:
             await ctx.send("Index Error! I can't find what you're looking for. 🤔")
             print("Index Error")
@@ -200,19 +227,42 @@ async def q(ctx,*,url):
         queues[guild_id].append(source)
     else:
         queues[guild_id] = [source]
-    await ctx.send("Song queued! ✔️")
+    await ctx.send("Song queued! 👍")
     print("Song added to queue")
+
+
 
 # Lists songs in queue
 @client.command(pass_context=True)
 async def list(ctx):
-    await ctx.send(queues)
+    voice = discord.utils.get(client.voice_clients,guild=ctx.guild)
+    
+    if qList == []:
+        await ctx.send("Queue appears to be empty! 🤔")
+
+    listStr = ""
+    listNum = 0
+    
+    for list in qList:
+        listNum += 1
+        listNumStr = str(listNum)
+        listStr += str(listNumStr + ". " + list + "\n")
+    
+    listStr = listStr[:-1]
+    await ctx.send(listStr)
+
+    if not voice.is_playing() and not voice.is_paused() and queues == []:
+        qList.clear()
+
+    print(queues)
+
     
 
 # Clears the queue
 @client.command(pass_context=True)
 async def clear(ctx):
     queues.clear()
+    qList.clear()
     await ctx.send("Queue cleared! 💥")
     print("Queue cleared")
 
@@ -223,7 +273,7 @@ async def check(ctx):
     if voice.is_playing() == False:
         await ctx.send("Nothing seems to be playing!")
     elif voice.is_playing() == True:
-        await ctx.send(f"Something is playing! {voice}")
+        await ctx.send(f"Something is playing! {voice} // {qList(0)}")
 
 
 
