@@ -8,21 +8,14 @@ from youtube_dl import YoutubeDL
 from youtube_dl.utils import DownloadError
 import datetime
 
-
 client = commands.Bot(command_prefix='!')
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
 # ----
-
 queues = {}
 qList = []
-
-# ----
-
-
-
 # ----
 
 # Checks if anything is in queue
@@ -40,7 +33,7 @@ def check_queue(ctx,id):
 async def on_ready():
     print("Loudbeats has arrived!")
     print("----------------------")
-    await client.change_presence(status=discord.Status.online, activity=discord.Game("Audio for Discord guilds"))
+    await client.change_presence(status=discord.Status.online, activity=discord.Game("Audio for Discord"))
 
 # Bot joins voice channel
 @client.command(pass_context=True)
@@ -115,7 +108,6 @@ async def skip(ctx):
         qList.pop(0)
         await ctx.send("Skipped! ⏭️")
         print("Skipped, queue empty") 
-
 
 # Bot plays song
 @client.command(pass_context=True)
@@ -230,7 +222,6 @@ async def q(ctx,*,url):
                 voice.stop()
                 await ctx.send("Sorry, something just went horrifically wrong! 😟 Please try again.")  
 
-
     guild_id = ctx.message.guild.id        
     
     # Checks if queue is empty
@@ -240,7 +231,6 @@ async def q(ctx,*,url):
         queues[guild_id] = [source]
     await ctx.send("Song queued! 👍")
     print("Song added to queue")
-
 
 # Lists songs in queue
 @client.command(pass_context=True)
@@ -266,8 +256,6 @@ async def list(ctx):
 
     print(queues)
 
-    
-
 # Clears the queue
 @client.command(pass_context=True)
 async def clear(ctx):
@@ -275,7 +263,6 @@ async def clear(ctx):
     qList.clear()
     await ctx.send("Queue cleared! 💥")
     print("Queue cleared")
-
 
 @client.command(pass_context=True)
 async def check(ctx):
@@ -285,7 +272,6 @@ async def check(ctx):
     elif voice.is_playing() == True:
         await ctx.send(f"Something is playing! {voice} // {qList(0)}")
 
+client.run(TOKEN)
 
-
-client.run("ODkyOTY2ODgwODc5NDU2Mjk2.YVUmNg.FqDgABYYa187XI9lFaShMg9HV2I")
-
+#--🚀 Loudbeats by CaptLynx 2022 🚀--#
