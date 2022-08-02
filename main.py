@@ -7,6 +7,7 @@ from discord import FFmpegPCMAudio
 from youtube_dl import YoutubeDL
 from youtube_dl.utils import DownloadError
 import datetime
+import traceback
 
 client = commands.Bot(command_prefix='!')
 
@@ -19,14 +20,24 @@ qList = []
 # ----
 
 # Checks if anything is in queue
-def check_queue(ctx,id):
-    if queues[id] != []:
-        voice = ctx.guild.voice_client
-        source = queues[id].pop(0)
-        voice.play(source, after=lambda e: check_queue(ctx, ctx.message.guild.id))
-        print("check_queue function CALLED AND UTILIZED")
-    qList.pop(0)
-    print("qList popped")
+def check_queue(*args):
+    print(args[1])
+    try:
+        if queues == {}:
+            queues[args[1]] = args[2]
+        
+        else:
+            if queues[args[1]] != []:
+                voice = args[0].guild.voice_client
+                source = queues[args[1]].pop(0)
+                voice.play(source, after=lambda e: check_queue(args[0], args[0].message.guild.id))
+                print("check_queue function CALLED AND UTILIZED")
+            qList.pop(0)
+            print("qList popped")
+    except Exception:
+        traceback.print_exc()
+        
+    
 
 # Displays bot status
 @client.event
@@ -121,7 +132,7 @@ async def play(ctx,*,url):
             await voice_channel.connect()
         else:
             await ctx.voice_client.move_to(voice_channel)
-        ctx.voice_client.stop()
+        # ctx.voice_client.stop()
         
     # Audio and search options
         FFMPEG_OPTS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
@@ -139,29 +150,120 @@ async def play(ctx,*,url):
                 qList.append(f"{info.get('title')} | {durationCalc}")
                 URL = info['formats'][0]['url']
                 source = FFmpegPCMAudio(URL, **FFMPEG_OPTS)
-                voice.play(source, after=lambda e: check_queue(ctx, ctx.message.guild.id))
+                voice.play(source, after=lambda e: check_queue(ctx, ctx.message.guild.id, source))
                 voice.is_playing()
                 print("Search play called")
             else:
-                await ctx.send("Already playing song")
-                return
-        
+                # -----------------
+                 # If using search
+                try:
+                    with YoutubeDL(YDL_OPTS) as ydl:
+                        info = ydl.extract_info(url, download=False)['entries'][0]
+                    await ctx.send(f"Coming right up! ▶️\n{info.get('webpage_url')}\n")
+                    durInt = int(f"{info.get('duration')}")
+                    durationCalc = str(datetime.timedelta(seconds=durInt))
+                    qList.append(f"{info.get('title')} | {durationCalc}")
+                    URL = info['formats'][0]['url']
+                    source = FFmpegPCMAudio(URL, **FFMPEG_OPTS)
+                    print(voice)
+                    print("Search queue called")
+                # If using URL
+                except KeyError:
+                    with YoutubeDL(YDL_OPTS) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                    durInt = int(f"{info.get('duration')}")
+                    durationCalc = str(datetime.timedelta(seconds=durInt))
+                    qList.append(f"{info.get('title')} | {durationCalc}")
+                    URL = info['formats'][0]['url']
+                    source = FFmpegPCMAudio(URL, **FFMPEG_OPTS)
+                    print(voice)
+                    print("URL queue called")
+                except IndexError:
+                        await ctx.send("Index Error! I can't find what you're looking for. 🤔")
+                        print("Index Error")
+                        
+                except DownloadError:
+                        await ctx.send("Sorry, looks like your link is incomplete! 🤔")
+                        print("Incomplete link!")
+                except:
+                        queues.clear()
+                        qList.clear()
+                        voice.stop()
+                        await ctx.send("Sorry, something just went horrifically wrong! 😟 Please try again.")
+                # ----------------- 
+                guild_id = ctx.message.guild.id 
+                
+                # Checks if queue is empty
+                if guild_id in queues:
+                    queues[guild_id].append(source)
+                else:
+                    queues[guild_id] = [source]
+                await ctx.send("Song queued! 👍")
+                print("Song added to queue")
+            
         #If using URL
         except KeyError:
             if not voice.is_playing():
                 with YoutubeDL(YDL_OPTS) as ydl:
                     info = ydl.extract_info(url, download=False)
+                await ctx.send(f"Now playing! 🎉\n{info.get('webpage_url')}\n")
                 durInt = int(f"{info.get('duration')}")
                 durationCalc = str(datetime.timedelta(seconds=durInt))
                 qList.append(f"{info.get('title')} | {durationCalc}")
                 URL = info['formats'][0]['url']
                 source = FFmpegPCMAudio(URL, **FFMPEG_OPTS)
-                voice.play(source, after=lambda e: check_queue(ctx, ctx.message.guild.id))
+                voice.play(source, after=lambda e: check_queue(ctx, ctx.message.guild.id, source))
                 voice.is_playing()
                 print("URL play called")
             else:
-                await ctx.send("Already playing song")
-                return
+                #--------
+                        # If using search
+                try:
+                    with YoutubeDL(YDL_OPTS) as ydl:
+                        info = ydl.extract_info(url, download=False)['entries'][0]
+                    await ctx.send(f"Coming right up! ▶️\n{info.get('webpage_url')}\n")
+                    durInt = int(f"{info.get('duration')}")
+                    durationCalc = str(datetime.timedelta(seconds=durInt))
+                    qList.append(f"{info.get('title')} | {durationCalc}")
+                    URL = info['formats'][0]['url']
+                    source = FFmpegPCMAudio(URL, **FFMPEG_OPTS)
+                    print(voice)
+                    print("Search queue called")
+                # If using URL
+                except KeyError:
+                    with YoutubeDL(YDL_OPTS) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                    durInt = int(f"{info.get('duration')}")
+                    durationCalc = str(datetime.timedelta(seconds=durInt))
+                    qList.append(f"{info.get('title')} | {durationCalc}")
+                    URL = info['formats'][0]['url']
+                    source = FFmpegPCMAudio(URL, **FFMPEG_OPTS)
+                    print(voice)
+                    print("URL queue called")
+                except IndexError:
+                        await ctx.send("Index Error! I can't find what you're looking for. 🤔")
+                        print("Index Error")
+                        
+                except DownloadError:
+                        await ctx.send("Sorry, looks like your link is incomplete! 🤔")
+                        print("Incomplete link!")
+                except:
+                        queues.clear()
+                        qList.clear()
+                        voice.stop()
+                        await ctx.send("Sorry, something just went horrifically wrong! 😟 Please try again.")
+                #--------
+                guild_id = ctx.message.guild.id 
+                 
+
+                # Checks if queue is empty
+                if guild_id in queues:
+                    queues[guild_id].append(source)
+                else:
+                    queues[guild_id] = [source]
+                await ctx.send("Song queued! 👍")
+                print("Song added to queue")
+
         except IndexError:
                 await ctx.send("Index Error! I can't find what you're looking for. 🤔")
                 print("Index Error")
@@ -169,11 +271,12 @@ async def play(ctx,*,url):
         except DownloadError:
                 await ctx.send("Sorry, looks like your link is incomplete! 🤔")
                 print("Incomplete link!")
-        except:
+        except Exception:
+                traceback.print_exc()
                 queues.clear()
                 qList.clear()
                 voice.stop()
-                await ctx.send("Sorry, something just went horrifically wrong! 😟 Please try again.")   
+                await ctx.send("Sorry, something just went horrifically wrong! 😟 Please try again.")
 
 # Queue function
 @client.command(pass_context=True)
@@ -274,4 +377,4 @@ async def check(ctx):
 
 client.run(TOKEN)
 
-#--🚀 Loudbeats by CaptLynx 2022 🚀--#
+#--🚀 Loudbeats by Samuel Facey 2022 🚀--#
