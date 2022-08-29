@@ -1,27 +1,108 @@
 import os
+import threading
 import discord
 from discord.utils import get
 from dotenv import load_dotenv
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord import FFmpegPCMAudio
 from youtube_dl import YoutubeDL
 from youtube_dl.utils import DownloadError
 import datetime
 import traceback
+import speech_recognition as sr
+import asyncio
+import pvporcupine
+import pyaudio
+import struct
+import time
+from playsound import playsound
+
 
 client = commands.Bot(command_prefix='!')
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
+P_TOKEN = os.getenv('PICO_TOKEN')
 
+# ----
+access_key = P_TOKEN
+keyword_paths = ['C:\\Users\\Epics\\Desktop\\LoudBeats\\wake_words\\Loud-beats_en_windows_v2_1_0.ppn']
+
+handle = None
+pa = None
+audio_stream = None
 # ----
 queues = {}
 qList = []
 # ----
 
+# Enables Speech commands
+@client.command(pass_context=True)
+async def listen(ctx):
+        await join(ctx)
+        print("listening for wake word...")
+        try:
+            handle = pvporcupine.create(access_key=access_key, keyword_paths=keyword_paths)
+            pa = pyaudio.PyAudio()
+            audio_stream = pa.open(rate=handle.sample_rate,channels=1,format=pyaudio.paInt16,input=True,frames_per_buffer=handle.frame_length)
+            iterations = 0
+
+            while True:
+                pcm = audio_stream.read(handle.frame_length)
+                pcm = struct.unpack_from("h" * handle.frame_length, pcm)
+                keyword_index = handle.process(pcm)
+                iterations += 1
+                if keyword_index >= 0:
+                    print("Hotword Detected")
+                    playsound("audio\\Activated.wav")
+                    listener = sr.Recognizer()
+                    try:
+                        with sr.Microphone() as source:
+                            print("Listening") 
+                            await ctx.send("Listening...")
+                            voice = listener.listen(source, timeout=7)
+                            command = listener.recognize_google(voice, language="en-US")
+                            command = command.lower()
+                            playsound("audio\\Understood.wav")
+                            await ctx.send(f"You said: {command}")
+                            if "play" and "right now" in command:
+                                c = command.replace("play","")
+                                await play_now(ctx=ctx, url=c)
+                            elif "play" in command:
+                                c = command.replace("play","")
+                                await play(ctx=ctx, url=c)
+                            elif "stop" in command:
+                                await stop(ctx)
+                            elif "pause" in command:
+                                await pause(ctx)
+                            elif "resume" in command:
+                                await resume(ctx)
+                            elif "skip" in command:
+                                await skip(ctx)
+                            elif "leave" in command:
+                                await leave(ctx)
+                            elif "queue" in command:
+                                await list(ctx)
+                            elif "clear" in command:
+                                await clear(ctx)
+                    except Exception as e:
+                        print(e)
+                    break
+                if iterations >= 500:
+                    await ctx.send("No longer listening! Try again if you want :)")
+                    break
+                          
+        finally:  
+                if handle is not None:
+                    handle.delete()
+                if audio_stream is not None:
+                    audio_stream.close()
+                if pa is not None:
+                    pa.terminate()
+                return
+
 # Checks if anything is in queue
 def check_queue(*args):
-    print(args[1])
     try:
         if queues == {}:
             queues[args[1]] = args[2]
@@ -30,9 +111,7 @@ def check_queue(*args):
                 voice = args[0].guild.voice_client
                 source = queues[args[1]].pop(0)
                 voice.play(source, after=lambda e: check_queue(args[0], args[0].message.guild.id))
-                print("check_queue function CALLED AND UTILIZED")
             qList.pop(0)
-            print("qList popped")
     except Exception:
         traceback.print_exc()
         
@@ -42,7 +121,7 @@ async def on_ready():
     print("Loudbeats has arrived!")
     print("----------------------")
     await client.change_presence(status=discord.Status.online, activity=discord.Game("Audio for Discord"))
-
+    
 # Bot joins voice channel
 @client.command(pass_context=True)
 async def join(ctx):
@@ -122,14 +201,7 @@ async def skip(ctx):
 async def play(ctx,*,url):
     
     # Joins voice channel
-        if ctx.author.voice is None:
-            await ctx.send("Hold up, the voice channel is empty! 😔")
-        voice_channel = ctx.author.voice.channel
-        if ctx.voice_client is None:
-            await voice_channel.connect()
-        else:
-            await ctx.voice_client.move_to(voice_channel)
-        # ctx.voice_client.stop()
+        await join(ctx)
         
     # Audio and search options
         FFMPEG_OPTS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
@@ -285,6 +357,40 @@ async def play(ctx,*,url):
                 voice.stop()
                 await ctx.send("Sorry, something just went horrifically wrong! 😟 Please try again.")
 
+# Plays requested song immediately
+@client.command(pass_context=True)
+async def play_now(ctx,*,url):
+    # Audio and search options
+        FFMPEG_OPTS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+        YDL_OPTS = {'format': 'bestaudio/best','noplaylist':'True', 'outtml': 'song.%(ext)s', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192' }],'default_search':'auto'}
+        voice = get(client.voice_clients, guild=ctx.guild)
+        try:
+                # Will download and play track
+            with YoutubeDL(YDL_OPTS) as ydl:
+                info = ydl.extract_info(url, download=False)['entries'][0]
+            await ctx.send(f"Now playing! 🎉\n{info.get('webpage_url')}\n")
+            durInt = int(f"{info.get('duration')}")
+            durationCalc = str(datetime.timedelta(seconds=durInt))
+            qList.append(f"{info.get('title')} | {durationCalc}")
+            URL = info['formats'][0]['url']
+            source = FFmpegPCMAudio(URL, **FFMPEG_OPTS)
+            voice.play(source, after=lambda e: check_queue(ctx, ctx.message.guild.id, source))
+            voice.is_playing()
+            print("Search play called")
+        except IndexError:
+                await ctx.send("Index Error! I can't find what you're looking for. 🤔")
+                print("Index Error")
+             
+        except DownloadError:
+                await ctx.send("Sorry, looks like your link is incomplete! 🤔")
+                print("Incomplete link!")
+        except Exception:
+                traceback.print_exc()
+                queues.clear()
+                qList.clear()
+                voice.stop()
+                await ctx.send("Sorry, something just went horrifically wrong! 😟 Please try again.")       
+
 # Lists songs in queue
 @client.command(pass_context=True)
 async def list(ctx):
@@ -317,6 +423,7 @@ async def clear(ctx):
     await ctx.send("Queue cleared! 💥")
     print("Queue cleared")
 
+# Debug command to check if the bot is trying to play something
 @client.command(pass_context=True)
 async def check(ctx):
     voice = discord.utils.get(client.voice_clients,guild=ctx.guild)
@@ -326,5 +433,4 @@ async def check(ctx):
         await ctx.send(f"Something is playing! {voice} // {qList(0)}")
 
 client.run(TOKEN)
-
 #--🚀 Loudbeats by Samuel Facey 2022 🚀--#
