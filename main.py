@@ -1,20 +1,17 @@
 import os
-import threading
 import discord
 from discord.utils import get
 from dotenv import load_dotenv
-from discord.ext import commands, tasks
+from discord.ext import commands
 from discord import FFmpegPCMAudio
 from youtube_dl import YoutubeDL
 from youtube_dl.utils import DownloadError
 import datetime
 import traceback
 import speech_recognition as sr
-import asyncio
 import pvporcupine
 import pyaudio
 import struct
-import time
 from playsound import playsound
 
 
@@ -41,25 +38,32 @@ qList = []
 async def listen(ctx):
         await join(ctx)
         print("listening for wake word...")
+        await ctx.send("Listening for wake word...")
         try:
+            # Microphone setup for wake word
             handle = pvporcupine.create(access_key=access_key, keyword_paths=keyword_paths)
             pa = pyaudio.PyAudio()
             audio_stream = pa.open(rate=handle.sample_rate,channels=1,format=pyaudio.paInt16,input=True,frames_per_buffer=handle.frame_length)
+            
+            # Timeout counter for while loop below 
             iterations = 0
 
+            # Listening for wake word
             while True:
                 pcm = audio_stream.read(handle.frame_length)
                 pcm = struct.unpack_from("h" * handle.frame_length, pcm)
                 keyword_index = handle.process(pcm)
                 iterations += 1
+
+                # If wake word detected
                 if keyword_index >= 0:
                     print("Hotword Detected")
                     playsound("audio\\Activated.wav")
                     listener = sr.Recognizer()
                     try:
+                        # General speech recognition
                         with sr.Microphone() as source:
                             print("Listening") 
-                            await ctx.send("Listening...")
                             voice = listener.listen(source, timeout=7)
                             command = listener.recognize_google(voice, language="en-US")
                             command = command.lower()
@@ -85,13 +89,21 @@ async def listen(ctx):
                                 await list(ctx)
                             elif "clear" in command:
                                 await clear(ctx)
+                            else:
+                                playsound("audio\\Misunderstood.wav")
                     except Exception as e:
                         print(e)
+                        playsound("audio\\Misunderstood.wav")
                     break
+
+                # If timeout triggered
                 if iterations >= 500:
-                    await ctx.send("No longer listening! Try again if you want :)")
+                    await ctx.send("Sorry, I didn't catch that!")
+                    print("No longer listening")
+                    playsound("audio\\Deactivated.wav")
                     break
-                          
+
+        # Audio memory cleanup          
         finally:  
                 if handle is not None:
                     handle.delete()
@@ -432,5 +444,6 @@ async def check(ctx):
     elif voice.is_playing() == True:
         await ctx.send(f"Something is playing! {voice} // {qList(0)}")
 
-client.run(TOKEN)
+if __name__ == "__main__":
+    client.run(TOKEN)
 #--🚀 Loudbeats by Samuel Facey 2022 🚀--#
