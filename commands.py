@@ -1,4 +1,3 @@
-from ast import Attribute
 import discord
 from discord.utils import get
 from discord import FFmpegPCMAudio
