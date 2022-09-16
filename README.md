@@ -7,7 +7,3 @@ dotenv
 discord
 FFmpeg
 youtube_dl
-speech_recognition
-struct
-pyaudio
-playsound

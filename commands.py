@@ -5,22 +5,12 @@ from youtube_dl import YoutubeDL
 from youtube_dl.utils import DownloadError
 import datetime
 import traceback
-import speech_recognition as sr
-import pvporcupine
-import pyaudio
-import struct
-from playsound import playsound
 
 class Player:
-    def __init__(self, client, queues, qList, handle, pa, audio_stream, access_key, keyword_paths) -> None:
+    def __init__(self, client, queues, qList) -> None:
         self.client = client
         self.queues = queues
         self.qList = qList
-        self.handle = handle
-        self.pa = pa
-        self.audio_stream = audio_stream
-        self.access_key = access_key
-        self.keyword_paths = keyword_paths
 
     # Checks if anything is in queue
     def check_queue(self, *args):
@@ -89,82 +79,6 @@ class Player:
 
         if not voice.is_playing() and not voice.is_paused() and self.queues == []:
             self.qList.clear()
-
-
-    async def listen(self,ctx):
-        await self.join(ctx)
-        print("listening for wake word...")
-        await ctx.send("Listening for wake word...")
-        try:
-            # Microphone setup for wake word
-            handle = pvporcupine.create(access_key=self.access_key, keyword_paths=self.keyword_paths)
-            pa = pyaudio.PyAudio()
-            audio_stream = pa.open(rate=handle.sample_rate,channels=1,format=pyaudio.paInt16,input=True,frames_per_buffer=handle.frame_length)
-            
-            # Timeout counter for while loop below 
-            iterations = 0
-
-            # Listening for wake word
-            while True:
-                pcm = audio_stream.read(handle.frame_length)
-                pcm = struct.unpack_from("h" * handle.frame_length, pcm)
-                keyword_index = handle.process(pcm)
-                iterations += 1
-
-                # If wake word detected
-                if keyword_index >= 0:
-                    print("Hotword Detected")
-                    playsound("audio\\Activated.wav")
-                    listener = sr.Recognizer()
-                    try:
-                        # General speech recognition
-                        with sr.Microphone() as source:
-                            print("Listening") 
-                            voice = listener.listen(source, timeout=7)
-                            command = listener.recognize_google(voice, language="en-US")
-                            command = command.lower()
-                            playsound("audio\\Understood.wav")
-                            await ctx.send(f"You said: {command}")
-                            if "play" in command:
-                                c = command.replace("play","")
-                                await self.play(ctx=ctx, url=c)
-                            elif "stop" in command:
-                                await self.stop(ctx)
-                            elif "pause" in command:
-                                await self.pause(ctx)
-                            elif "resume" in command:
-                                await self.resume(ctx)
-                            elif "skip" in command:
-                                await self.skip(ctx)
-                            elif "leave" in command:
-                                await self.leave(ctx)
-                            elif "queue" in command:
-                                await self.list(ctx)
-                            elif "clear" in command:
-                                await self.clear(ctx)
-                            else:
-                                playsound("audio\\Misunderstood.wav")
-                    except Exception as e:
-                        print(e)
-                        playsound("audio\\Misunderstood.wav")
-                    break
-
-                # If timeout triggered
-                if iterations >= 500:
-                    await ctx.send("Sorry, I didn't catch that!")
-                    print("No longer listening")
-                    playsound("audio\\Deactivated.wav")
-                    break
-
-        # Audio memory cleanup          
-        finally:  
-                if handle is not None:
-                    handle.delete()
-                if audio_stream is not None:
-                    audio_stream.close()
-                if pa is not None:
-                    pa.terminate()
-                return
 
 
     async def play(self,ctx,*,url):
