@@ -13,7 +13,8 @@ queues = {}
 qList = []
 
 # Initializes Bot client, and Player object
-client = commands.Bot(command_prefix='/')
+intents = discord.Intents.all()
+client = commands.Bot(command_prefix='/',intents=intents)
 player = Player(client=client, queues=queues, qList=qList)
      
 # Displays bot status

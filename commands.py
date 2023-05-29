@@ -28,7 +28,10 @@ class Player:
                         voice.play(source, after=lambda e: self.check_queue(args[0], args[0].message.guild.id))
                     except:
                         pass
-                self.qList.pop(0)
+                
+                if self.qList != []:
+                    self.qList.pop(0)
+
         except Exception:
             traceback.print_exc()
 
@@ -271,8 +274,14 @@ class Player:
     
 
     async def skip(self,ctx):
+
         id = ctx.message.guild.id
         voice = ctx.guild.voice_client
+
+        if self.queues == {}:
+             await ctx.send('There isn\'t anything to skip! 🤔')
+             return
+
         if self.queues[id] != []:
             voice.stop()
             source = self.queues.get(id)
