@@ -9,13 +9,13 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
 # Queue Variables
-queues = {}
-qList = []
+audio_queue = {}
+audio_list = []
 
 # Initializes Bot client, and Player object
 intents = discord.Intents.all()
 client = commands.Bot(command_prefix='/',intents=intents)
-player = Player(client=client, queues=queues, qList=qList)
+player = Player(client=client, audio_queue=audio_queue, audio_list=audio_list)
      
 # Displays bot status
 @client.event
@@ -57,7 +57,7 @@ async def skip(ctx):
 # Bot plays song
 @client.command(pass_context=True)
 async def play(ctx,*,url):
-    await player.play(ctx=ctx,url=url)     
+    await player.play(ctx=ctx,youtube_url=url)     
 
 # Lists songs in queue
 @client.command(pass_context=True)
